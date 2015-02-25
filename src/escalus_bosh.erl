@@ -99,8 +99,9 @@ stop(#client{rcv_pid = Pid}) ->
             already_stopped
     end.
 
-kill(Transport) ->
-    error({not_implemented_for, ?MODULE}, [Transport]).
+kill(#client{} = Client) ->
+    mark_as_terminated(Client),
+    stop(Client).
 
 upgrade_to_tls(#client{} = _Conn, _Props) ->
     not_supported.
@@ -248,6 +249,7 @@ init([Args, Owner]) ->
     Port = proplists:get_value(port, Args, 5280),
     Path = proplists:get_value(path, Args, <<"/http-bind">>),
     Wait = proplists:get_value(bosh_wait, Args, ?DEFAULT_WAIT),
+    HTTPS = proplists:get_value(ssl, Args, false),
     EventClient = proplists:get_value(event_client, Args),
     HostStr = host_to_list(Host),
     OnReplyFun = proplists:get_value(on_reply, Args, fun(_) -> ok end),
@@ -255,7 +257,7 @@ init([Args, Owner]) ->
     {MS, S, MMS} = now(),
     InitRid = MS * 1000000 * 1000000 + S * 1000000 + MMS,
     {ok, Parser} = exml_stream:new_parser(),
-    {ok, Client} = fusco_cp:start_link({HostStr, Port, false},
+    {ok, Client} = fusco_cp:start_link({HostStr, Port, HTTPS},
                                        [{on_connect, OnConnectFun}],
                                        %% Max two connections as per BOSH rfc
                                        2),
